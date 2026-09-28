@@ -9,7 +9,7 @@ A KOReader plugin for keyboard-style e-readers (tested on Kindle Keyboard / K3) 
 - **Single-key line jumps**: press the badge letter to move the cursor to the first word of that line.
 - **Word-by-word movement**: D-pad `Left` / `Right` jumps to the previous / next word on reflowable documents.
 - **Line-by-line movement**: D-pad `Up` / `Down` jumps to the previous / next visible line.
-- **Vertical bar cursor** (`|`) instead of the default crosshair (`+`).
+- **Vertical bar cursor** (`|`) while badges are visible; reverts to the default KOReader crosshair (`+`) when badges are hidden.
 - **Reflowable documents only**: MOBI, EPUB, AZW3, etc. PDF is not supported.
 
 ## Requirements
@@ -71,7 +71,7 @@ cp -r /path/to/koreader-linehints/linehints.koplugin plugins/
 
 | File | Change |
 |------|--------|
-| `frontend/apps/reader/modules/readerview.lua` | `drawHighlightIndicator()` now draws a vertical bar cursor instead of a crosshair. |
+| `frontend/apps/reader/modules/readerview.lua` | `drawHighlightIndicator()` draws a vertical bar cursor when line hints are visible, and the default crosshair otherwise. |
 | `frontend/apps/reader/modules/readerhighlight.lua` | `onMoveHighlightIndicator()` uses semantic word/line movement for reflowable documents; helper methods `getVisibleLineBoxes()`, `snapIndicatorToBox()`, `moveIndicatorByWord()`, and `moveIndicatorByLine()` added. |
 
 See `patches/` for the exact diffs.

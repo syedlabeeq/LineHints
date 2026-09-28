@@ -1,6 +1,14 @@
 --- frontend/apps/reader/modules/readerview.lua
 +++ frontend/apps/reader/modules/readerview.lua
-@@ -506,19 +506,9 @@
+@@ -100,6 +100,7 @@
+         -- NOTE: Unfortunately, yellow tends to look like absolute ass on Kaleido panels...
+         saved_color = Screen:isColorEnabled() and "yellow" or "gray",
+         indicator = nil, -- geom: non-touch highlight position indicator: {x = 50, y=50}
++        indicator_style = "cross", -- "cross" (+) or "bar" (|), toggled by linehints plugin
+     }
+     self.page_states = {}
+     self.page_gap = {
+@@ -506,19 +507,25 @@
  
  function ReaderView:drawHighlightIndicator(bb, x, y)
      local rect = self.highlight.indicator
@@ -17,9 +25,25 @@
 -        Size.border.thick,
 -        rect.h
 -    )
-+    -- paint a vertical bar cursor (|) instead of a crosshair (+)
-+    local cursor_width = Size.border.thick * 2
-+    bb:paintRect(rect.x, rect.y, cursor_width, rect.h, Blitbuffer.COLOR_BLACK)
++    if self.highlight.indicator_style == "bar" then
++        -- Kindle-style vertical bar cursor (|)
++        local cursor_width = Size.border.thick * 2
++        bb:paintRect(rect.x, rect.y, cursor_width, rect.h, Blitbuffer.COLOR_BLACK)
++    else
++        -- Default KOReader crosshair cursor (+)
++        bb:paintRect(
++            rect.x,
++            rect.y + rect.h / 2 - Size.border.thick / 2,
++            rect.w,
++            Size.border.thick
++        )
++        bb:paintRect(
++            rect.x + rect.w / 2 - Size.border.thick / 2,
++            rect.y,
++            Size.border.thick,
++            rect.h
++        )
++    end
  end
  
  function ReaderView:drawTempHighlight(bb, x, y)

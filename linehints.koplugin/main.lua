@@ -43,8 +43,10 @@ function LineHints:onToggleLineHints()
     self.visible = not self.visible
     if self.visible then
         self:recomputeLines()
+        self.view.highlight.indicator_style = "bar"
     else
         self.line_infos = {}
+        self.view.highlight.indicator_style = "cross"
     end
     UIManager:setDirty(self.dialog, "ui")
     return true
