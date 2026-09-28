@@ -1,0 +1,25 @@
+--- frontend/apps/reader/modules/readerview.lua
++++ frontend/apps/reader/modules/readerview.lua
+@@ -506,19 +506,9 @@
+ 
+ function ReaderView:drawHighlightIndicator(bb, x, y)
+     local rect = self.highlight.indicator
+-    -- paint big cross line +
+-    bb:paintRect(
+-        rect.x,
+-        rect.y + rect.h / 2 - Size.border.thick / 2,
+-        rect.w,
+-        Size.border.thick
+-    )
+-    bb:paintRect(
+-        rect.x + rect.w / 2 - Size.border.thick / 2,
+-        rect.y,
+-        Size.border.thick,
+-        rect.h
+-    )
++    -- paint a vertical bar cursor (|) instead of a crosshair (+)
++    local cursor_width = Size.border.thick * 2
++    bb:paintRect(rect.x, rect.y, cursor_width, rect.h, Blitbuffer.COLOR_BLACK)
+ end
+ 
+ function ReaderView:drawTempHighlight(bb, x, y)

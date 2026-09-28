@@ -1,0 +1,133 @@
+--- frontend/apps/reader/modules/readerview.lua
++++ frontend/apps/reader/modules/readerview.lua
+@@ -506,19 +506,9 @@
+ 
+ function ReaderView:drawHighlightIndicator(bb, x, y)
+     local rect = self.highlight.indicator
+-    -- paint big cross line +
+-    bb:paintRect(
+-        rect.x,
+-        rect.y + rect.h / 2 - Size.border.thick / 2,
+-        rect.w,
+-        Size.border.thick
+-    )
+-    bb:paintRect(
+-        rect.x + rect.w / 2 - Size.border.thick / 2,
+-        rect.y,
+-        Size.border.thick,
+-        rect.h
+-    )
++    -- paint a vertical bar cursor (|) instead of a crosshair (+)
++    local cursor_width = Size.border.thick * 2
++    bb:paintRect(rect.x, rect.y, cursor_width, rect.h, Blitbuffer.COLOR_BLACK)
+ end
+ 
+ function ReaderView:drawTempHighlight(bb, x, y)
+--- frontend/apps/reader/modules/readerhighlight.lua
++++ frontend/apps/reader/modules/readerhighlight.lua
+@@ -2755,9 +2755,105 @@
+     return false
+ end
+ 
++function ReaderHighlight:getVisibleLineBoxes()
++    local res = self.ui.document:getTextFromPositions(
++        {x = 0, y = 0},
++        {x = self.screen_w, y = self.screen_h},
++        true) -- do not draw selection
++    if not res or not res.pos0 or not res.pos1 then return nil end
++    return self.ui.document:getScreenBoxesFromPositions(res.pos0, res.pos1, true)
++end
++
++function ReaderHighlight:snapIndicatorToBox(box)
++    UIManager:setDirty(self.dialog, "ui", self._current_indicator_pos)
++    self._current_indicator_pos = box:copy()
++    self.view.highlight.indicator = self._current_indicator_pos
++    UIManager:setDirty(self.dialog, "ui", self._current_indicator_pos)
++end
++
++function ReaderHighlight:moveIndicatorByWord(direction)
++    local pos = self._current_indicator_pos
++    local word = self.ui.document:getWordFromPosition({
++        x = pos.x + pos.w / 2,
++        y = pos.y + pos.h / 2,
++    }, true)
++    if not word or not word.pos0 then return false end
++
++    local new_xp = direction > 0
++        and self.ui.document:getNextVisibleWordStart(word.pos0)
++        or self.ui.document:getPrevVisibleWordStart(word.pos0)
++    if not new_xp then return false end
++
++    local screen_y, screen_x = self.ui.document:getScreenPositionFromXPointer(new_xp)
++    -- Probe slightly inside the word to avoid boundary misses.
++    local probe_x = math.max(0, math.min(screen_x + 2, self.screen_w))
++    local probe_y = screen_y
++    local new_word = self.ui.document:getWordFromPosition({x = probe_x, y = probe_y}, true)
++    if new_word and new_word.sbox then
++        self:snapIndicatorToBox(new_word.sbox)
++        if self._start_indicator_highlight then
++            self:onHoldPan(nil, self:_createHighlightGesture("hold_pan"))
++        end
++        return true
++    end
++    return false
++end
++
++function ReaderHighlight:moveIndicatorByLine(direction)
++    local line_boxes = self:getVisibleLineBoxes()
++    if not line_boxes or #line_boxes == 0 then return false end
++
++    local pos = self._current_indicator_pos
++    local center_y = pos.y + pos.h / 2
++    local current_idx
++    for i, line_box in ipairs(line_boxes) do
++        if center_y >= line_box.y and center_y <= line_box.y + line_box.h then
++            current_idx = i
++            break
++        end
++    end
++    if not current_idx then return false end
++
++    local target_idx = current_idx + direction
++    if target_idx < 1 or target_idx > #line_boxes then return false end
++
++    local target_line = line_boxes[target_idx]
++    local target_x = pos.x + pos.w / 2
++    local target_y = target_line.y + target_line.h / 2
++
++    -- Try to land on a word at the same horizontal position.
++    local new_word = self.ui.document:getWordFromPosition({x = target_x, y = target_y}, true)
++    if not new_word or not new_word.sbox then
++        -- If that misses, probe from the left edge toward the target x.
++        local line_end = target_line.x + target_line.w
++        local step = math.max(2, math.floor((line_end - target_line.x) / 8))
++        for probe_x = target_line.x, line_end, step do
++            new_word = self.ui.document:getWordFromPosition({x = probe_x, y = target_y}, true)
++            if new_word and new_word.sbox then break end
++        end
++    end
++
++    if new_word and new_word.sbox then
++        self:snapIndicatorToBox(new_word.sbox)
++        if self._start_indicator_highlight then
++            self:onHoldPan(nil, self:_createHighlightGesture("hold_pan"))
++        end
++        return true
++    end
++    return false
++end
++
+ function ReaderHighlight:onMoveHighlightIndicator(args)
+     if self.view.visible_area and self._current_indicator_pos then
+         local dx, dy, quick_move = unpack(args)
++        -- For reflowable documents, use semantic word/line movement instead of pixel nudging.
++        if self.ui.rolling and not quick_move then
++            if dx ~= 0 and self:moveIndicatorByWord(dx) then
++                return true
++            elseif dy ~= 0 and self:moveIndicatorByLine(dy) then
++                return true
++            end
++        end
+         local quick_move_distance_dx = self.view.visible_area.w * (1/5) -- quick move distance: fifth of visible_area
+         local quick_move_distance_dy = self.view.visible_area.h * (1/5)
+         -- single move distance, user adjustable, default value (4) capable to move on word with small font size and narrow line height
